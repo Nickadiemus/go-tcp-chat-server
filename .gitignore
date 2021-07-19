@@ -17,3 +17,4 @@ vendor/
 .DS_*
 /.DS_*
 /*/.DS_*
+.env
