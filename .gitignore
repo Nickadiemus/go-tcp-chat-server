@@ -18,3 +18,4 @@ vendor/
 /.DS_*
 /*/.DS_*
 .env
+cmd/chat-server/chat-server-dev

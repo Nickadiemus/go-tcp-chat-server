@@ -5,6 +5,14 @@ import (
 )
 
 type Room struct {
-	name string // name of room
-	size map[net.Addr]*Client
+	Name    string // name of room
+	Members map[net.Addr]*Client
+}
+
+func (r *Room) Broadcast(sender *Client, msg string) {
+	for addr, m := range r.Members {
+		if addr != sender.Conn.RemoteAddr() {
+			m.Msg(msg)
+		}
+	}
 }

@@ -7,17 +7,19 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
-	_ "github.com/joho/godotenv/autoload"
 	"github.com/nickadiemus/go-tcp-chat-server/pkg/server"
 )
 
 func main() {
-	err := godotenv.Load()
-	fmt.Println("Starting chat server...")
+	err := godotenv.Load("../../.env")
+	if err != nil {
+		log.Fatalf("Error starting server: %s", err.Error())
+	}
 	s := server.NewServer()
 	go s.Run()
 	port := os.Getenv("PORT")
 	listener, err := net.Listen("tcp", port)
+	fmt.Printf("Listening on localhost:%s\n", port)
 	if err != nil {
 		log.Fatalf("Error starting server: %s", err.Error())
 	}

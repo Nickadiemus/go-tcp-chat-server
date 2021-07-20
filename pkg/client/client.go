@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"net"
 	"strings"
-
-	"github.com/nickadiemus/go-tcp-chat-server/pkg/room"
 )
 
 // Client hold client side information for details on connection
@@ -21,45 +19,51 @@ type Client struct {
 // reads input
 func (c *Client) ReadInput() {
 	for {
-		msg, err := bufio.NewScanner(c.conn).ReadString("\n")
+		msg, err := bufio.NewReader(c.Conn).ReadString('\n')
 		if err != nil {
 			return // connection closed
 		}
 		msg = strings.Trim(msg, "\r\n ")
 
-		args := strings.Split(" ")
+		args := strings.Split(msg, " ")
 		cmd := strings.TrimSpace(args[0])
 		switch cmd {
 		case "/setname":
-			c.commands <- Command(
-				id: CMD_SET_NAME,
-				client: c,
-				args: args,
-			)
+			c.Commands <- Command{
+				Id:     CMD_SET_NAME,
+				Client: c,
+				Args:   args,
+			}
 		case "/join":
-				c.commands <- Command(
-				id: CMD_JOIN,
-				client: c,
-				args: args,
-			)
+			c.Commands <- Command{
+				Id:     CMD_JOIN,
+				Client: c,
+				Args:   args,
+			}
+		case "/createroom":
+			c.Commands <- Command{
+				Id:     CMD_CREATE,
+				Client: c,
+				Args:   args,
+			}
 		case "/listrooms":
-				c.commands <- Command(
-				id: CMD_ROOMS,
-				client: c,
-				args: args,
-			)
+			c.Commands <- Command{
+				Id:     CMD_ROOMS,
+				Client: c,
+				Args:   args,
+			}
 		case "/msg":
-				c.commands <- Command(
-				id: CMD_MSG,
-				client: c,
-				args: args,
-			)
+			c.Commands <- Command{
+				Id:     CMD_MSG,
+				Client: c,
+				Args:   args,
+			}
 		case "/quit":
-				c.commands <- Command(
-				id: CMD_QUIT,
-				client: c,
-				args: args,
-			)
+			c.Commands <- Command{
+				Id:     CMD_QUIT,
+				Client: c,
+				Args:   args,
+			}
 		default:
 			c.Err(fmt.Errorf("invalid command: %s", cmd))
 		}
@@ -67,10 +71,14 @@ func (c *Client) ReadInput() {
 }
 
 func (c *Client) Err(err error) {
-	c.conn.Write([]byte("Error: " + err.Error() + "\n"))
+	c.Conn.Write([]byte("Error: " + err.Error() + "\n"))
 }
 
 // msg is used to broadcast text
 func (c *Client) Msg(msg string) {
-	c.conn.Write([]byte("> " + msg + "\n"))
+	c.Conn.Write([]byte("> " + msg + "\n"))
+}
+
+func (c *Client) JoinRoom(r Room) {
+	c.Room = &r
 }
