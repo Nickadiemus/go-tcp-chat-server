@@ -74,9 +74,13 @@ func (c *Client) Err(err error) {
 	c.Conn.Write([]byte("Error: " + err.Error() + "\n"))
 }
 
-// msg is used to broadcast text
+// msg is used to broadcast text to specifically the client
 func (c *Client) Msg(msg string) {
-	c.Conn.Write([]byte("> " + msg + "\n"))
+	if c.Room != nil {
+		c.Conn.Write([]byte(fmt.Sprintf("%s:", c.Room.Name) + "> " + msg + "\n"))
+	} else {
+		c.Conn.Write([]byte("> " + msg + "\n"))
+	}
 }
 
 func (c *Client) JoinRoom(r Room) {

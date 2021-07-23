@@ -9,32 +9,35 @@ import (
 	"github.com/nickadiemus/go-tcp-chat-server/pkg/client"
 )
 
-// Server handles processing command inputs and room deligation
+// Server defines model for Server
 type Server struct {
-	Rooms    map[string]*client.Room
-	Commands chan client.Command
+	rooms    map[string]*client.Room
+	commands chan client.Command
 }
 
+// NewServer creates a new server instance
 func NewServer() *Server {
-	fmt.Println("Creating new instance of chat server...")
+	log.Println("Creating new instance of chat server...")
 	return &Server{
-		Rooms:    make(map[string]*client.Room),
-		Commands: make(chan client.Command),
+		rooms:    make(map[string]*client.Room),
+		commands: make(chan client.Command),
 	}
 }
 
+// NewClient creates a new cient instance
 func (s *Server) NewClient(conn net.Conn) {
 	log.Print("Acquired new connection | addr: %s", conn.RemoteAddr().String())
 	c := &client.Client{
 		Conn:     conn,
 		Name:     "anonymous",
-		Commands: s.Commands,
+		Commands: s.commands,
 	}
 	c.ReadInput()
 }
 
+// Run starts the process of command input
 func (s *Server) Run() {
-	for cmd := range s.Commands {
+	for cmd := range s.commands {
 		switch cmd.Id {
 		case client.CMD_SET_NAME:
 			s.setName(cmd.Client, cmd.Args)
@@ -53,12 +56,14 @@ func (s *Server) Run() {
 	}
 }
 
+// setName changes the client's name provided arguments
 func (s *Server) setName(c *client.Client, args []string) {
 	// validate arg input
 	c.Name = args[1]
 	c.Msg(fmt.Sprintf("name changed to %s", c.Name))
 }
 
+// msg broadcastes a client's message to the associated room
 func (s *Server) msg(c *client.Client, args []string) {
 	// check if user belongs to a room
 	if c.Room == nil {
@@ -71,23 +76,26 @@ func (s *Server) msg(c *client.Client, args []string) {
 		return
 	}
 	// broadcast messageto current room
+
 	c.Room.Broadcast(c, fmt.Sprintf("%s: %s", c.Name, strings.Join(args[1:], " ")))
 }
 
+// joinRoom handles client room joining logic
 func (s *Server) joinRoom(c *client.Client, args []string) {
 	// TODO: validate arg input
 	// check if room exists
-	r, ok := s.Rooms[args[1]]
+	r, ok := s.rooms[args[1]]
 	if !ok {
 		c.Msg(fmt.Sprintf("Server doesn't exist. You can create %s new one with the command /create %s", args[1], args[1]))
 	}
 	// check if current client belongs to a room
-
 	r.Members[c.Conn.RemoteAddr()] = c
 	s.leaveCurrentRoom(c)
 	c.Room = r
 	// else send error to client that no room could be found
 }
+
+// listRooms sends a list of available rooms to the client
 func (s *Server) listRooms(c *client.Client, args []string) {
 	// validate arg input
 	if len(args) > 1 {
@@ -95,12 +103,14 @@ func (s *Server) listRooms(c *client.Client, args []string) {
 		return
 	}
 	msg := ""
-	for room := range s.Rooms {
+	for room := range s.rooms {
 		msg += room + "\n"
 	}
 	c.Msg(msg)
 	// loop over current rooms and write to client availible rooms
 }
+
+// createRoom creates a new room
 func (s *Server) createRoom(c *client.Client, args []string) {
 	// validate arg input
 	if len(args) < 2 {
@@ -108,21 +118,28 @@ func (s *Server) createRoom(c *client.Client, args []string) {
 		return
 	}
 	// check for existing room
-	_, ok := s.Rooms[args[1]]
+	_, ok := s.rooms[args[1]]
 	if !ok {
-		s.Rooms[args[1]] = &client.Room{
+		s.rooms[args[1]] = &client.Room{
 			Name:    args[1],
 			Members: make(map[net.Addr]*client.Client),
 		}
 	} else {
-		c.Msg(fmt.Sprintf("%s already exists. Try /join %s jump in!", args[1], args[1]))
+		c.Msg(fmt.Sprintf("%s already exists. Try /join %s to jump in!", args[1], args[1]))
 	}
 
 }
+
+// quit removes the client from its current room and closes the connection
 func (s *Server) quit(c *client.Client, args []string) {
+	log.Printf("user %s has disconnected: %s", c.Name, c.Conn.RemoteAddr())
+	s.leaveCurrentRoom(c)
+	c.Msg("Goodbye!")
 	// terminate client's connection from server
+	c.Conn.Close()
 }
 
+// leaveCurrentRoom leaves the client's current room
 func (s *Server) leaveCurrentRoom(c *client.Client) {
 	if c.Room != nil {
 		delete(c.Room.Members, c.Conn.RemoteAddr())
